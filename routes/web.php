@@ -3,6 +3,7 @@
 //The OpenAI API provides powerful tools for developers to integrate advanced AI capabilities, such as natural language processing and text generation, into their applications. With its user-friendly interface and extensive documentation, it allows for seamless innovation across various industries.
 
 use App\AI\Assistant;
+use App\Rules\SpamFree;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
@@ -17,34 +18,7 @@ Route::post('/replies', function () {
         'body' => [
             'required',
             'string',
-            function ($attribute, $value, $fail) {
-                $response = OpenAI::chat()->create([
-                    'model' => 'gpt-4o-mini',
-                    'messages' => [
-                        ['role' => 'system', 'content' => 'You are a froum moderator who always responds using JSON.'],
-                        [
-                            'role' => 'user',
-                            'content' => <<<EOT
-                                        Please inspect the following text and determine if it is spam
-
-                                        {$value}
-
-                                        Expected Response Example:
-
-                                        {"is_spam" : true|false}
-                                    EOT
-                        ]
-                    ],
-                    'response_format' => ['type' => 'json_object']
-                ])->choices[0]->message->content;
-
-                $response = json_decode($response);
-
-                if ($response->is_spam) {
-                    $fail('Spam was detected');
-                }
-            }
-
+            new SpamFree()
         ]
     ]);
 

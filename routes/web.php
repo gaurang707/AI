@@ -5,6 +5,7 @@
 use App\AI\Assistant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
 use OpenAI\Laravel\Facades\OpenAI;
 
 Route::get('/', function () {
@@ -12,32 +13,43 @@ Route::get('/', function () {
 });
 
 Route::post('/replies', function () {
-    $attributes = request()->validate([
-        'body' => ['required', 'string']
+    request()->validate([
+        'body' => [
+            'required',
+            'string',
+            function ($attribute, $value, $fail) {
+                $response = OpenAI::chat()->create([
+                    'model' => 'gpt-4o-mini',
+                    'messages' => [
+                        ['role' => 'system', 'content' => 'You are a froum moderator who always responds using JSON.'],
+                        [
+                            'role' => 'user',
+                            'content' => <<<EOT
+                                        Please inspect the following text and determine if it is spam
+
+                                        {$value}
+
+                                        Expected Response Example:
+
+                                        {"is_spam" : true|false}
+                                    EOT
+                        ]
+                    ],
+                    'response_format' => ['type' => 'json_object']
+                ])->choices[0]->message->content;
+
+                $response = json_decode($response);
+
+                if ($response->is_spam) {
+                    $fail('Spam was detected');
+                }
+            }
+
+        ]
     ]);
 
-    $response = OpenAI::chat()->create([
-        'model' => 'gpt-4o-mini',
-        'messages' => [
-            ['role' => 'system', 'content' => 'You are a froum moderator who always responds using JSON.'],
-            [
-                'role' => 'user',
-                'content' => <<<EOT
-                        Please inspect the following text and determine if it is spam
-
-                        {$attributes['body']}
-
-                        Expected Response Example:
-
-                        {"is_spam" : true|false}
-                    EOT
-            ]
-        ],
-        'response_format' => ['type' => 'json_object']
-    ])->choices[0]->message->content;
-    
-    $response = json_decode($response);
-    return $response->is_spam ? 'THIS IS SPAM!' : 'VALID POST';
+        return 'Redirect wherever is needed. Post is valid!';
+    //return $response->is_spam ? 'THIS IS SPAM!' : 'VALID POST';
 });
 
 Route::get('/destroy', function () {

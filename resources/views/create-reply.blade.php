@@ -27,6 +27,14 @@
                     Submit
                 </button>
             </div>
+
+            @if ($errors->any())
+                <ul class="mt-2">
+                    @foreach ($errors->all() as $error)
+                        <li class="text-sm text-red-500">{{ $error }}</li>
+                    @endforeach
+                </ul>
+            @endif
         </form>
     </div>
 </body>
